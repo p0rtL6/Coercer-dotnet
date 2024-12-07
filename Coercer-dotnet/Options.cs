@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 using Coercer_dotnet.structures;
+using Coercer_dotnet.utils;
 
 namespace Coercer_dotnet
 {
@@ -63,7 +64,7 @@ positional arguments:
 
             Type type = GetType();
 
-            string categoryName = (type.Name[..1] + string.Join(" ", Regex.Split(type.Name[1..], @"(?=[A-Z])"))).ToLower();
+            string categoryName = StringUtils.CamelCaseToSpaceSeperated(type.Name);
 
             Console.Write($"{categoryName}");
 
@@ -151,7 +152,7 @@ positional arguments:
                                 {
                                     if (genericType.IsArray)
                                     {
-                                        string valueString = string.Join(", ", ((Array)value).Cast<object>().Select(item => item?.ToString()));
+                                        string valueString = StringUtils.ArrayToCommaSeperated((Array)value);
                                         Console.Write($"(default: {valueString})");
                                     }
                                     else
@@ -162,7 +163,7 @@ positional arguments:
 
                                 if (genericType is not null && genericType.IsEnum)
                                 {
-                                    string enumString = string.Join(", ", Enum.GetNames(genericType));
+                                    string enumString = StringUtils.EnumToCommaSeperatedVariants(genericType);
                                     Console.Write($" (choices: {enumString})");
                                 }
                             }
@@ -325,7 +326,7 @@ positional arguments:
                                             }
                                             else
                                             {
-                                                throw new Exception("Argument type does not have a parse method.");
+                                                throw new Exception($"Argument {StringUtils.CamelCaseToSpaceSeperated(propertyType.Name)} does not have a parse method.");
                                             }
                                         }
                                     }
@@ -334,7 +335,7 @@ positional arguments:
                                 {
                                     if (values.Count > 1)
                                     {
-                                        throw new Exception("Expected one value for argument, got multiple.");
+                                        throw new Exception($"Expected one value for argument {StringUtils.CamelCaseToSpaceSeperated(propertyType.Name)}, got multiple.");
                                     }
 
                                     object? value = null;
@@ -348,7 +349,7 @@ positional arguments:
                                         }
                                         else
                                         {
-                                            throw new Exception("Value is required.");
+                                            throw new Exception($"Value is required for argument {StringUtils.CamelCaseToSpaceSeperated(propertyType.Name)}.");
                                         }
                                     }
 
@@ -372,7 +373,7 @@ positional arguments:
                                         }
                                         else
                                         {
-                                            throw new Exception("Argument type does not have a parse method.");
+                                            throw new Exception($"Argument {StringUtils.CamelCaseToSpaceSeperated(propertyType.Name)} does not have a parse method.");
                                         }
                                     }
                                 }
@@ -384,12 +385,12 @@ positional arguments:
 
             if (exclusive && matchedArgsCount > 1)
             {
-                throw new Exception("Found more than one argument in an exclusive category.");
+                throw new Exception($"Found more than one argument in an exclusive category: {StringUtils.CamelCaseToSpaceSeperated(type.Name)}.");
             }
 
             if (required && matchedArgsCount == 0)
             {
-                throw new Exception("Category requires an argument.");
+                throw new Exception($"Category {StringUtils.CamelCaseToSpaceSeperated(type.Name)} requires an argument.");
             }
         }
     }
@@ -409,6 +410,13 @@ positional arguments:
 
         public Options(Mode mode, string[] args) : base(mode, args)
         {
+
+            if (args.Length == 0 || args[0] == "--help" || args[0] == "-h")
+            {
+                Options.ShowHelpMenu();
+                Environment.Exit(0);
+            }
+
             Help = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--help", "-h", "Show the help menu", false, false);
             Verbose = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--verbose", "-v", "Verbose mode", false, false);
             Debug = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--debug", null, "Debug mode", false, false);
@@ -476,7 +484,7 @@ positional arguments:
 
         public FilterOptions(Mode mode, string[] args) : base(mode, args)
         {
-            FilterMethodName = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--filter-method-name", null, "", false, new[] { "test1", "test2" });
+            FilterMethodName = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--filter-method-name", null, "", false);
             FilterProtocolName = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--filter-protocol-name", null, "", false);
             FilterPipeName = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--filter-pipe-name", null, "", false);
             FilterTransportName = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--filter-transport-name", null, "", false, new[] { TransportName.MSRPC, TransportName.DCERPC });
@@ -506,6 +514,38 @@ positional arguments:
             DcIp = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--dc-ip", null, "IP Address of the domain controller. If omitted it will use the domain part (FQDN) specified in the target parameter", false);
             OnlyKnownExploitPaths = new(new[] { Mode.FUZZ }, "--only-known-exploit-paths", null, "Only test known exploit paths for each functions", false, false);
             Parse(mode, args);
+
+            if (Password.Value is null && Username.Value is not null && (Hashes.Value is null || Hashes.Value.Length != 0) && NoPass.Value != true)
+            {
+                Console.Write("Password: ");
+                string password = string.Empty;
+
+                while (true)
+                {
+                    var key = Console.ReadKey(true);
+                    if (key.Key == ConsoleKey.Enter)
+                    {
+                        break;
+                    }
+
+                    if (key.Key == ConsoleKey.Backspace)
+                    {
+                        if (password.Length > 0)
+                        {
+                            password = password[..^1];
+                            Console.Write("\b \b");
+                        }
+                    }
+                    else
+                    {
+                        password += key.KeyChar;
+                        Console.Write("*");
+                    }
+                }
+
+                Console.WriteLine();
+                Password.Value = password;
+            }
         }
     }
 

@@ -1,18 +1,22 @@
-namespace Coercer_dotnet.structures {
-    public enum AuthType {
+namespace Coercer_dotnet.structures
+{
+    public enum AuthType
+    {
         NONE,
         SMB,
         HTTP
     }
 
-    public enum Mode {
+    public enum Mode
+    {
         NONE,
         COERCE,
         SCAN,
         FUZZ
     }
 
-    public enum TransportName {
+    public enum TransportName
+    {
         NONE,
         MSRPC,
         DCERPC

@@ -6,20 +6,13 @@ namespace Coercer_dotnet
     {
         static void Main(string[] args)
         {
-            if (args.Length == 0)
+            Mode mode = Mode.NONE;
+            try
             {
-                Options.ShowHelpMenu();
+                mode = (Mode)Enum.Parse(typeof(Mode), args[0].ToUpper());
             }
-            else
-            {
-                if (args[0] == "--help" || args[0] == "-h")
-                {
-                    Options.ShowHelpMenu();
-                    return;
-                }
-                Mode mode = (Mode)Enum.Parse(typeof(Mode), args[0].ToUpper());
-                Options options = new(mode, args);
-            }
+            catch { }
+            Options options = new(mode, args);
         }
     }
 }
