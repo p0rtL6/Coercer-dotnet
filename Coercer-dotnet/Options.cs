@@ -13,14 +13,13 @@ namespace Coercer_dotnet
 / /___/ /_/ /  __/ /  / /__/  __/ /  /_____/ /_/ / /_/ / /_/ / / /  __/ /_    v0.1.0
 \____/\____/\___/_/   \___/\___/_/         \__,_/\____/\__/_/ /_/\___/\__/    by @p0rtL";
 
-        private static bool shownMainHelp = false;
+        private static bool shownHelpTitle = false;
+        public Mode Mode { get; set; }
 
-        public OptionsBase(Mode mode, string[] args) { }
-
-
-        public static void ShowHelpMenu()
+        public OptionsBase() { }
+        public static void ShowHelpTitle()
         {
-            shownMainHelp = true;
+            shownHelpTitle = true;
             Console.WriteLine(titleArt);
             Console.WriteLine(@"
 usage: coercer [-h] [-v] [--debug] {scan,coerce,fuzz} ...
@@ -55,11 +54,11 @@ positional arguments:
             }
             return false;
         }
-        public void ShowHelpMenu(Mode mode, bool exclusive, bool required)
+        public void ShowCategoryHelpMenu(bool exclusive, bool required)
         {
-            if (!shownMainHelp)
+            if (!shownHelpTitle)
             {
-                ShowHelpMenu();
+                ShowHelpTitle();
             }
 
             Type type = GetType();
@@ -89,7 +88,7 @@ positional arguments:
                 {
                     if (propertyType.IsGenericType && propertyType.GetGenericTypeDefinition() == typeof(Argument<>))
                     {
-                        if (!ArgumentInSelectedMode(mode, property))
+                        if (!ArgumentInSelectedMode(Mode, property))
                         {
                             continue;
                         }
@@ -174,8 +173,16 @@ positional arguments:
                 }
             }
         }
-        public void Parse(Mode mode, string[] args)
+        public void Parse(string[] args)
         {
+            if (args.Length == 0 || args[0] == "--help" || args[0] == "-h")
+            {
+                ShowHelpTitle();
+                Environment.Exit(0);
+            }
+
+            Mode = (Mode)Enum.Parse(typeof(Mode), args[0].ToUpper());
+
             Type type = GetType();
 
             bool exclusive = false;
@@ -202,7 +209,7 @@ positional arguments:
 
             if (args.Contains("--help") || args.Contains("-h"))
             {
-                ShowHelpMenu(mode, exclusive, required);
+                ShowCategoryHelpMenu(exclusive, required);
                 return;
             }
 
@@ -220,7 +227,7 @@ positional arguments:
                     if (propertyType.IsGenericType && propertyType.GetGenericTypeDefinition() == typeof(Argument<>))
                     {
 
-                        if (!ArgumentInSelectedMode(mode, property))
+                        if (!ArgumentInSelectedMode(Mode, property))
                         {
                             continue;
                         }
@@ -408,32 +415,25 @@ positional arguments:
         public TargetOptions TargetOptions { get; }
         public ListenerOptions ListenerOptions { get; }
 
-        public Options(Mode mode, string[] args) : base(mode, args)
+        public Options(string[] args) : base()
         {
-
-            if (args.Length == 0 || args[0] == "--help" || args[0] == "-h")
-            {
-                Options.ShowHelpMenu();
-                Environment.Exit(0);
-            }
-
             Help = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--help", "-h", "Show the help menu", false, false);
             Verbose = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--verbose", "-v", "Verbose mode", false, false);
             Debug = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--debug", null, "Debug mode", false, false);
 
-            Parse(mode, args);
+            Parse(args);
 
-            AdvancedOptions = new(mode, args);
-            FilterOptions = new(mode, args);
-            CredentialOptions = new(mode, args);
-            TargetOptions = new(mode, args);
-            ListenerOptions = new(mode, args);
+            AdvancedOptions = new(args);
+            FilterOptions = new(args);
+            CredentialOptions = new(args);
+            TargetOptions = new(args);
+            ListenerOptions = new(args);
         }
     }
 
     public class OptionsCategory : OptionsBase
     {
-        public OptionsCategory(Mode mode, string[] args) : base(mode, args) { }
+        public OptionsCategory() : base() { }
     }
 
     public class AdvancedOptions : OptionsCategory
@@ -454,7 +454,7 @@ positional arguments:
         public Argument<bool> StopOnNtlmAuth { get; }
         public Argument<bool> AlwaysContinue { get; }
 
-        public AdvancedOptions(Mode mode, string[] args) : base(mode, args)
+        public AdvancedOptions(string[] args) : base()
         {
             ExportJson = new(new[] { Mode.SCAN, Mode.FUZZ }, "--export-json", null, "Export results to specified JSON file", false);
             ExportXlsx = new(new[] { Mode.SCAN, Mode.FUZZ }, "--export-xlsx", null, "Export results to specified XLSX file", false);
@@ -469,7 +469,7 @@ positional arguments:
             AuthType = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--auth-type", null, "Desired authentication type", false);
             StopOnNtlmAuth = new(new[] { Mode.SCAN }, "--stop-on-ntlm-auth", null, "Move on to next target on successful NTLM authentication", false, false);
             AlwaysContinue = new(new[] { Mode.COERCE }, "--always-continue", null, "Always continue to coerce", false, false);
-            Parse(mode, args);
+            Parse(args);
         }
     }
 
@@ -482,13 +482,13 @@ positional arguments:
         public Argument<string[]> FilterPipeName { get; }
         public Argument<TransportName[]> FilterTransportName { get; }
 
-        public FilterOptions(Mode mode, string[] args) : base(mode, args)
+        public FilterOptions(string[] args) : base()
         {
             FilterMethodName = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--filter-method-name", null, "", false);
             FilterProtocolName = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--filter-protocol-name", null, "", false);
             FilterPipeName = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--filter-pipe-name", null, "", false);
             FilterTransportName = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--filter-transport-name", null, "", false, new[] { TransportName.MSRPC, TransportName.DCERPC });
-            Parse(mode, args);
+            Parse(args);
         }
     }
 
@@ -504,7 +504,7 @@ positional arguments:
         public Argument<System.Net.IPAddress> DcIp { get; }
         public Argument<bool> OnlyKnownExploitPaths { get; }
 
-        public CredentialOptions(Mode mode, string[] args) : base(mode, args)
+        public CredentialOptions(string[] args) : base()
         {
             Username = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--username", "-u", "Username to authenticate to the remote machine", false);
             Password = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--password", "-p", "Password to authenticate to the remote machine. (if omitted, it will be asked unless -no-pass is specified)", false);
@@ -513,7 +513,7 @@ positional arguments:
             NoPass = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--no-pass", null, "Don't ask for password (useful for -k)", false);
             DcIp = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--dc-ip", null, "IP Address of the domain controller. If omitted it will use the domain part (FQDN) specified in the target parameter", false);
             OnlyKnownExploitPaths = new(new[] { Mode.FUZZ }, "--only-known-exploit-paths", null, "Only test known exploit paths for each functions", false, false);
-            Parse(mode, args);
+            Parse(args);
 
             if (Password.Value is null && Username.Value is not null && (Hashes.Value is null || Hashes.Value.Length != 0) && NoPass.Value != true)
             {
@@ -556,11 +556,11 @@ positional arguments:
         public Argument<System.Net.IPAddress> TargetIp { get; }
         public Argument<string> TargetsFile { get; }
 
-        public TargetOptions(Mode mode, string[] args) : base(mode, args)
+        public TargetOptions(string[] args) : base()
         {
             TargetIp = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--target-ip", "-t", "IP address or hostname of the target machine", false);
             TargetsFile = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--targets-file", "-f", "File containing a list of IP address or hostname of the target machines", false);
-            Parse(mode, args);
+            Parse(args);
         }
     }
 
@@ -572,12 +572,12 @@ positional arguments:
         public Argument<System.Net.IPAddress> IpAddress { get; }
         public Argument<System.Net.IPAddress> ListenerIp { get; }
 
-        public ListenerOptions(Mode mode, string[] args) : base(mode, args)
+        public ListenerOptions(string[] args) : base()
         {
             InterfaceOption = new(new[] { Mode.SCAN, Mode.FUZZ }, "--interface", "-i", "Interface to listen on incoming authentications", false);
             IpAddress = new(new[] { Mode.SCAN, Mode.FUZZ }, "--ip-address", "-I", "IP address to listen on incoming authentications", false);
             ListenerIp = new(new[] { Mode.COERCE }, "--listener-ip", "-l", "IP address or hostname of the listener machine", true);
-            Parse(mode, args);
+            Parse(args);
         }
     }
 
