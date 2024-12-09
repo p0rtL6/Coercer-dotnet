@@ -6,8 +6,8 @@ namespace Coercer_dotnet
     {
         static void Main(string[] args)
         {
-            Options options = new(args);
             AvailableMethods availableMethods = new();
+            Options options = new(args);
         }
     }
 }

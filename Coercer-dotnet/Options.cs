@@ -1,3 +1,4 @@
+using System.Net;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using Coercer_dotnet.structures;
@@ -337,11 +338,67 @@ positional arguments:
                                         }
                                     }
                                 }
+                                else if (argumentValueType.IsGenericType && argumentValueType.GetGenericTypeDefinition() == typeof(HashSet<>))
+                                {
+                                    Type? argumentElementType = argumentValueType.GetGenericArguments()[0];
+
+                                    if (argumentElementType is not null)
+                                    {
+                                        if (argumentElementType == typeof(string))
+                                        {
+                                            argumentValueProperty.SetValue(propertyValue, values.ToHashSet());
+                                        }
+                                        else
+                                        {
+                                            MethodInfo? parseMethod = null;
+                                            if (argumentElementType.IsEnum)
+                                            {
+                                                parseMethod = typeof(Enum).GetMethod("Parse", new[] { typeof(Type), typeof(string) });
+                                            }
+                                            else
+                                            {
+                                                parseMethod = argumentElementType.GetMethod("Parse", new[] { typeof(string) });
+                                            }
+                                            if (parseMethod is not null)
+                                            {
+                                                var parsedHashsetType = typeof(HashSet<>).MakeGenericType(argumentElementType);
+                                                var parsedHashset = Activator.CreateInstance(parsedHashsetType);
+                                                var addMethod = parsedHashsetType.GetMethod("Add");
+
+                                                if (addMethod is not null)
+                                                {
+                                                    foreach (string value in values)
+                                                    {
+                                                        object? parsedValue = null;
+                                                        if (argumentElementType.IsEnum)
+                                                        {
+                                                            parsedValue = parseMethod.Invoke(null, new object[] { argumentElementType, value.ToUpper() });
+                                                        }
+                                                        else
+                                                        {
+                                                            parsedValue = parseMethod.Invoke(null, new object[] { value });
+                                                        }
+                                                        if (parsedValue is not null)
+                                                        {
+                                                            addMethod.Invoke(parsedHashset, new object[] { Convert.ChangeType(parsedValue, argumentElementType) });
+                                                        }
+                                                    }
+                                                }
+                                                argumentValueProperty.SetValue(propertyValue, parsedHashset);
+                                            }
+                                            else
+                                            {
+                                                throw new Exception($"Argument {StringUtils.CamelCaseToSpaceSeperated(propertyType.Name)} does not have a parse method.");
+                                            }
+                                        }
+                                    }
+                                }
                                 else
                                 {
                                     if (values.Count > 1)
                                     {
-                                        throw new Exception($"Expected one value for argument {StringUtils.CamelCaseToSpaceSeperated(propertyType.Name)}, got multiple.");
+                                        Console.WriteLine(argumentValueType);
+                                        throw new Exception($"Expected one value for argument {StringUtils.CamelCaseToSpaceSeperated(property.Name)}, got multiple.");
                                     }
 
                                     object? value = null;
@@ -355,7 +412,7 @@ positional arguments:
                                         }
                                         else
                                         {
-                                            throw new Exception($"Value is required for argument {StringUtils.CamelCaseToSpaceSeperated(propertyType.Name)}.");
+                                            throw new Exception($"Value is required for argument {StringUtils.CamelCaseToSpaceSeperated(property.Name)}.");
                                         }
                                     }
 
@@ -500,9 +557,9 @@ positional arguments:
         public Argument<string> Username { get; }
         public Argument<string> Password { get; }
         public Argument<string> Domain { get; }
-        public Argument<string[]> Hashes { get; }
+        public Argument<Hash[]> Hashes { get; }
         public Argument<bool> NoPass { get; }
-        public Argument<System.Net.IPAddress> DcIp { get; }
+        public Argument<IPAddress> DcIp { get; }
         public Argument<bool> OnlyKnownExploitPaths { get; }
 
         public CredentialOptions(string[] args) : base()
@@ -554,14 +611,34 @@ positional arguments:
     {
         private readonly bool exclusive = true;
         private readonly bool required = true;
-        public Argument<System.Net.IPAddress> TargetIp { get; }
+        public Argument<HashSet<IPAddress>> TargetIps { get; }
         public Argument<string> TargetsFile { get; }
 
         public TargetOptions(string[] args) : base()
         {
-            TargetIp = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--target-ip", "-t", "IP address or hostname of the target machine", false);
+            TargetIps = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--target-ip", "-t", "IP address or hostname of the target machine", false);
             TargetsFile = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--targets-file", "-f", "File containing a list of IP address or hostname of the target machines", false);
             Parse(args);
+
+            if (TargetsFile.Value is not null)
+            {
+                if (File.Exists(TargetsFile.Value))
+                {
+                    HashSet<IPAddress> targetIpsFromFile = File.ReadAllLines(TargetsFile.Value).Select(s => IPAddress.Parse(s)).ToHashSet();
+                    if (TargetIps.Value is not null && TargetIps.Value.Count > 0)
+                    {
+                        TargetIps.Value = TargetIps.Value.Concat(targetIpsFromFile).ToHashSet();
+                    }
+                    else
+                    {
+                        TargetIps.Value = targetIpsFromFile;
+                    }
+                }
+                else
+                {
+                    throw new FileNotFoundException("Targets File path does not exist.");
+                }
+            }
         }
     }
 
@@ -570,8 +647,8 @@ positional arguments:
         private readonly bool exclusive = true;
         private readonly bool required = false;
         public Argument<string> InterfaceOption { get; }
-        public Argument<System.Net.IPAddress> IpAddress { get; }
-        public Argument<System.Net.IPAddress> ListenerIp { get; }
+        public Argument<IPAddress> IpAddress { get; }
+        public Argument<IPAddress> ListenerIp { get; }
 
         public ListenerOptions(string[] args) : base()
         {
