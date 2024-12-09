@@ -5,7 +5,7 @@ using Coercer_dotnet.utils;
 
 namespace Coercer_dotnet
 {
-    public class OptionsBase
+    public abstract class OptionsBase
     {
         private static readonly string titleArt = @"   ______                                         __      __             __ 
   / ____/___  ___  _____________  _____      ____/ /___  / /_____  ___  / /_
@@ -13,10 +13,9 @@ namespace Coercer_dotnet
 / /___/ /_/ /  __/ /  / /__/  __/ /  /_____/ /_/ / /_/ / /_/ / / /  __/ /_    v0.1.0
 \____/\____/\___/_/   \___/\___/_/         \__,_/\____/\__/_/ /_/\___/\__/    by @p0rtL";
 
-        private static bool shownHelpTitle = false;
+        internal static bool shownHelpTitle = false;
         public Mode Mode { get; set; }
 
-        public OptionsBase() { }
         public static void ShowHelpTitle()
         {
             shownHelpTitle = true;
@@ -428,13 +427,15 @@ positional arguments:
             CredentialOptions = new(args);
             TargetOptions = new(args);
             ListenerOptions = new(args);
+
+            if (shownHelpTitle)
+            {
+                Environment.Exit(0);
+            }
         }
     }
 
-    public class OptionsCategory : OptionsBase
-    {
-        public OptionsCategory() : base() { }
-    }
+    public abstract class OptionsCategory : OptionsBase { }
 
     public class AdvancedOptions : OptionsCategory
     {
