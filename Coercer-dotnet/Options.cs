@@ -395,14 +395,6 @@ positional arguments:
                                 }
                                 else
                                 {
-                                    if (values.Count > 1)
-                                    {
-                                        Console.WriteLine(argumentValueType);
-                                        throw new Exception($"Expected one value for argument {StringUtils.CamelCaseToSpaceSeperated(property.Name)}, got multiple.");
-                                    }
-
-                                    object? value = null;
-
                                     if (values.Count == 0)
                                     {
                                         if (argumentValueType == typeof(bool))
@@ -416,22 +408,38 @@ positional arguments:
                                         }
                                     }
 
-                                    value = values[0];
-
                                     if (argumentValueType == typeof(string))
                                     {
-                                        argumentValueProperty.SetValue(propertyValue, (string)value);
+                                        if (values.Count == 1)
+                                        {
+                                            argumentValueProperty.SetValue(propertyValue, values[0]);
+                                        }
+                                        else
+                                        {
+                                            throw new Exception("Expected one argument for argument {StringUtils.CamelCaseToSpaceSeperated(property.Name)}, got multiple.");
+                                        }
                                     }
                                     else
                                     {
-                                        MethodInfo? parseMethod = argumentValueType.GetMethod("Parse", new[] { typeof(string) });
+                                        MethodInfo? parseMethod = null;
+                                        object? toParse = null;
+                                        if (argumentValueType.IsEnum)
+                                        {
+                                            values = values.Select(value => value.ToUpper()).ToList();
+                                        }
+                                        if (values.Count == 1)
+                                        {
+                                            parseMethod = argumentValueType.GetMethod("Parse", new[] { typeof(string) });
+                                            toParse = values[0].ToUpper();
+                                        }
+                                        else
+                                        {
+                                            parseMethod = argumentValueType.GetMethod("Parse", new[] { typeof(string[]) });
+                                            toParse = values.ToArray();
+                                        }
                                         if (parseMethod is not null)
                                         {
-                                            if (argumentValueType.IsEnum)
-                                            {
-                                                value = ((string)value).ToUpper();
-                                            }
-                                            object? parsedValue = parseMethod.Invoke(null, new object[] { value });
+                                            object? parsedValue = parseMethod.Invoke(null, new object[] { toParse });
                                             argumentValueProperty.SetValue(propertyValue, Convert.ChangeType(parsedValue, argumentValueType));
                                         }
                                         else
@@ -611,7 +619,7 @@ positional arguments:
     {
         private readonly bool exclusive = true;
         private readonly bool required = true;
-        public Argument<HashSet<IPAddress>> TargetIps { get; }
+        public Argument<Targets> TargetIps { get; }
         public Argument<string> TargetsFile { get; }
 
         public TargetOptions(string[] args) : base()
@@ -624,14 +632,14 @@ positional arguments:
             {
                 if (File.Exists(TargetsFile.Value))
                 {
-                    HashSet<IPAddress> targetIpsFromFile = File.ReadAllLines(TargetsFile.Value).Select(s => IPAddress.Parse(s)).ToHashSet();
-                    if (TargetIps.Value is not null && TargetIps.Value.Count > 0)
+                    HashSet<string> targetIpsFromFile = File.ReadAllLines(TargetsFile.Value).ToHashSet();
+                    if (TargetIps.Value is not null)
                     {
-                        TargetIps.Value = TargetIps.Value.Concat(targetIpsFromFile).ToHashSet();
+                        TargetIps.Value = new(TargetIps.Value.Addresses.Concat(targetIpsFromFile).ToHashSet());
                     }
                     else
                     {
-                        TargetIps.Value = targetIpsFromFile;
+                        TargetIps.Value = new(targetIpsFromFile);
                     }
                 }
                 else
