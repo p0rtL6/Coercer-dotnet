@@ -31,16 +31,26 @@ namespace Coercer_dotnet.methods
             };
         }
 
+        public Method[] Instantiate(AuthType authType, string listener)
+        {
+            return (Method[])Methods.Select(method => Activator.CreateInstance(method, new object[] { authType, listener }) ?? throw new Exception("Failed to instantiate method object."));
+        }
         public Method Instantiate(int methodIndex, AuthType authType, string listener)
         {
             return (Method)(Activator.CreateInstance(Methods[methodIndex], new object[] { authType, listener }) ?? throw new Exception("Failed to instantiate method object."));
         }
-
+        public Method[] Instantiate(AuthType authType, string listener, int port)
+        {
+            return (Method[])Methods.Select(method => Activator.CreateInstance(method, new object[] { authType, listener, port }) ?? throw new Exception("Failed to instantiate method object."));
+        }
         public Method Instantiate(int methodIndex, AuthType authType, string listener, int port)
         {
             return (Method)(Activator.CreateInstance(Methods[methodIndex], new object[] { authType, listener, port }) ?? throw new Exception("Failed to instantiate method object."));
         }
-
+        public Method[] Instantiate(AuthType authType, string listener, int httpPort, int smbPort)
+        {
+            return (Method[])Methods.Select(method => Activator.CreateInstance(method, new object[] { authType, listener, httpPort, smbPort }) ?? throw new Exception("Failed to instantiate method object.")).ToArray();
+        }
         public Method Instantiate(int methodIndex, AuthType authType, string listener, int httpPort, int smbPort)
         {
             return (Method)(Activator.CreateInstance(Methods[methodIndex], new object[] { authType, listener, httpPort, smbPort }) ?? throw new Exception("Failed to instantiate method object."));

@@ -15,7 +15,7 @@ namespace Coercer_dotnet.structures
         FUZZ
     }
 
-    public enum TransportName
+    public enum TransportNameFilter
     {
         NONE,
         MSRPC,

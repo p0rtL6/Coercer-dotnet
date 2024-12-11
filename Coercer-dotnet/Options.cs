@@ -1,6 +1,5 @@
 using System.Net;
 using System.Reflection;
-using System.Runtime.ConstrainedExecution;
 using Coercer_dotnet.structures;
 using Coercer_dotnet.utils;
 
@@ -8,14 +7,15 @@ namespace Coercer_dotnet
 {
     public abstract class OptionsBase
     {
+        internal static bool ShownHelpMenu { get; set; } = false;
+        internal static bool ShownProgramDescription { get; set; } = false;
 
-
-        internal static bool shownProgramDescription = false;
         public Mode Mode { get; set; }
 
         public static void ShowProgramDescription()
         {
-            shownProgramDescription = true;
+            ShownHelpMenu = true;
+            ShownProgramDescription = true;
             Console.WriteLine(@"usage: coercer [-h] [-v] [--debug] {scan,coerce,fuzz} ...
 
 Automatic windows authentication coercer using various methods.
@@ -50,10 +50,12 @@ positional arguments:
         }
         public void ShowCategoryHelpMenu(bool exclusive, bool required)
         {
-            if (!shownProgramDescription)
+            if (!ShownProgramDescription)
             {
                 ShowProgramDescription();
             }
+
+            ShownHelpMenu = true;
 
             Type type = GetType();
 
@@ -169,12 +171,6 @@ positional arguments:
         }
         public void Parse(string[] args, bool debug = false, bool verbose = false)
         {
-            if (args.Length == 0 || args[0] == "--help" || args[0] == "-h")
-            {
-                ShowProgramDescription();
-                Environment.Exit(0);
-            }
-
             Mode = (Mode)Enum.Parse(typeof(Mode), args[0].ToUpper());
 
             Type type = GetType();
@@ -543,9 +539,18 @@ positional arguments:
             Verbose = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--verbose", "-v", "Verbose mode", false, false);
             Debug = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--debug", null, "Debug mode", false, false);
 
+            if (args.Length == 0 || args[0] == "--help" || args[0] == "-h")
+            {
+                ShowProgramDescription();
+                Environment.Exit(0);
+            }
+
             Parse(args);
 
-            Logger.Info($"Starting {Mode.ToString().ToLower()} mode");
+            if (!ShownHelpMenu)
+            {
+                Logger.Info($"Starting {Mode.ToString().ToLower()} mode");
+            }
 
             AdvancedOptions = new(args);
             FilterOptions = new(args);
@@ -553,7 +558,7 @@ positional arguments:
             TargetOptions = new(args, Debug.Value);
             ListenerOptions = new(args);
 
-            if (shownProgramDescription)
+            if (ShownHelpMenu)
             {
                 Environment.Exit(0);
             }
@@ -606,14 +611,14 @@ positional arguments:
         public Argument<string[]> FilterMethodName { get; }
         public Argument<string[]> FilterProtocolName { get; }
         public Argument<string[]> FilterPipeName { get; }
-        public Argument<TransportName[]> FilterTransportName { get; }
+        public Argument<TransportNameFilter[]> FilterTransportName { get; }
 
         public FilterOptions(string[] args) : base()
         {
             FilterMethodName = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--filter-method-name", null, "", false);
             FilterProtocolName = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--filter-protocol-name", null, "", false);
             FilterPipeName = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--filter-pipe-name", null, "", false);
-            FilterTransportName = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--filter-transport-name", null, "", false, new[] { TransportName.MSRPC, TransportName.DCERPC });
+            FilterTransportName = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--filter-transport-name", null, "", false, new[] { TransportNameFilter.MSRPC, TransportNameFilter.DCERPC });
             Parse(args);
         }
     }
@@ -641,12 +646,12 @@ positional arguments:
             OnlyKnownExploitPaths = new(new[] { Mode.FUZZ }, "--only-known-exploit-paths", null, "Only test known exploit paths for each functions", false, false);
             Parse(args);
 
-            if (Username.Value is null || Username.Value == "")
+            if (!ShownHelpMenu && (Username.Value is null || Username.Value == ""))
             {
                 Logger.Info("No credentials provided, trying to connect with a NULL session.");
             }
 
-            if (Password.Value is null && Username.Value is not null && (Hashes.Value is null || Hashes.Value.Length != 0) && NoPass.Value != true)
+            if (!ShownHelpMenu && Password.Value is null && Username.Value is not null && (Hashes.Value is null || Hashes.Value.Length != 0) && NoPass.Value != true)
             {
                 Console.Write("Password: ");
                 string password = string.Empty;
