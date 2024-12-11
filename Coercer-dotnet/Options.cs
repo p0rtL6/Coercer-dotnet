@@ -1,6 +1,6 @@
 using System.Net;
 using System.Reflection;
-using System.Text.RegularExpressions;
+using System.Runtime.ConstrainedExecution;
 using Coercer_dotnet.structures;
 using Coercer_dotnet.utils;
 
@@ -8,21 +8,15 @@ namespace Coercer_dotnet
 {
     public abstract class OptionsBase
     {
-        private static readonly string titleArt = @"   ______                                         __      __             __ 
-  / ____/___  ___  _____________  _____      ____/ /___  / /_____  ___  / /_
- / /   / __ \/ _ \/ ___/ ___/ _ \/ ___/_____/ __  / __ \/ __/ __ \/ _ \/ __/
-/ /___/ /_/ /  __/ /  / /__/  __/ /  /_____/ /_/ / /_/ / /_/ / / /  __/ /_    v0.1.0
-\____/\____/\___/_/   \___/\___/_/         \__,_/\____/\__/_/ /_/\___/\__/    by @p0rtL";
 
-        internal static bool shownHelpTitle = false;
+
+        internal static bool shownProgramDescription = false;
         public Mode Mode { get; set; }
 
-        public static void ShowHelpTitle()
+        public static void ShowProgramDescription()
         {
-            shownHelpTitle = true;
-            Console.WriteLine(titleArt);
-            Console.WriteLine(@"
-usage: coercer [-h] [-v] [--debug] {scan,coerce,fuzz} ...
+            shownProgramDescription = true;
+            Console.WriteLine(@"usage: coercer [-h] [-v] [--debug] {scan,coerce,fuzz} ...
 
 Automatic windows authentication coercer using various methods.
 
@@ -56,9 +50,9 @@ positional arguments:
         }
         public void ShowCategoryHelpMenu(bool exclusive, bool required)
         {
-            if (!shownHelpTitle)
+            if (!shownProgramDescription)
             {
-                ShowHelpTitle();
+                ShowProgramDescription();
             }
 
             Type type = GetType();
@@ -173,11 +167,11 @@ positional arguments:
                 }
             }
         }
-        public void Parse(string[] args)
+        public void Parse(string[] args, bool debug = false, bool verbose = false)
         {
             if (args.Length == 0 || args[0] == "--help" || args[0] == "-h")
             {
-                ShowHelpTitle();
+                ShowProgramDescription();
                 Environment.Exit(0);
             }
 
@@ -292,7 +286,9 @@ positional arguments:
                                             }
                                             else
                                             {
-                                                parseMethod = argumentElementType.GetMethod("Parse", new[] { typeof(string) });
+                                                parseMethod = argumentElementType.GetMethod("Parse", new[] { typeof(string), typeof(bool), typeof(bool) });
+                                                parseMethod ??= argumentElementType.GetMethod("Parse", new[] { typeof(string), typeof(bool) });
+                                                parseMethod ??= argumentElementType.GetMethod("Parse", new[] { typeof(string) });
                                             }
                                             if (parseMethod is not null)
                                             {
@@ -311,7 +307,25 @@ positional arguments:
                                                         }
                                                         else
                                                         {
-                                                            parsedValue = parseMethod.Invoke(null, new object[] { value });
+                                                            ParameterInfo[] parameters = parseMethod.GetParameters();
+                                                            int expectedParameterCount = parameters.Length;
+
+                                                            if (expectedParameterCount == 1)
+                                                            {
+                                                                parsedValue = parseMethod.Invoke(null, new object[] { value });
+                                                            }
+                                                            else if (expectedParameterCount == 2)
+                                                            {
+                                                                parsedValue = parseMethod.Invoke(null, new object[] { value, debug });
+                                                            }
+                                                            else if (expectedParameterCount == 3)
+                                                            {
+                                                                parsedValue = parseMethod.Invoke(null, new object[] { value, debug, verbose });
+                                                            }
+                                                            else
+                                                            {
+                                                                throw new Exception("No matching param count.");
+                                                            }
                                                         }
                                                         if (parsedValue is not null)
                                                         {
@@ -357,7 +371,9 @@ positional arguments:
                                             }
                                             else
                                             {
-                                                parseMethod = argumentElementType.GetMethod("Parse", new[] { typeof(string) });
+                                                parseMethod = argumentElementType.GetMethod("Parse", new[] { typeof(string), typeof(bool), typeof(bool) });
+                                                parseMethod ??= argumentElementType.GetMethod("Parse", new[] { typeof(string), typeof(bool) });
+                                                parseMethod ??= argumentElementType.GetMethod("Parse", new[] { typeof(string) });
                                             }
                                             if (parseMethod is not null)
                                             {
@@ -376,7 +392,25 @@ positional arguments:
                                                         }
                                                         else
                                                         {
-                                                            parsedValue = parseMethod.Invoke(null, new object[] { value });
+                                                            ParameterInfo[] parameters = parseMethod.GetParameters();
+                                                            int expectedParameterCount = parameters.Length;
+
+                                                            if (expectedParameterCount == 1)
+                                                            {
+                                                                parsedValue = parseMethod.Invoke(null, new object[] { value });
+                                                            }
+                                                            else if (expectedParameterCount == 2)
+                                                            {
+                                                                parsedValue = parseMethod.Invoke(null, new object[] { value, debug });
+                                                            }
+                                                            else if (expectedParameterCount == 3)
+                                                            {
+                                                                parsedValue = parseMethod.Invoke(null, new object[] { value, debug, verbose });
+                                                            }
+                                                            else
+                                                            {
+                                                                throw new Exception("No matching param count.");
+                                                            }
                                                         }
                                                         if (parsedValue is not null)
                                                         {
@@ -429,17 +463,41 @@ positional arguments:
                                         }
                                         if (values.Count == 1)
                                         {
-                                            parseMethod = argumentValueType.GetMethod("Parse", new[] { typeof(string) });
+                                            parseMethod = argumentValueType.GetMethod("Parse", new[] { typeof(string), typeof(bool), typeof(bool) });
+                                            parseMethod ??= argumentValueType.GetMethod("Parse", new[] { typeof(string), typeof(bool) });
+                                            parseMethod ??= argumentValueType.GetMethod("Parse", new[] { typeof(string) });
                                             toParse = values[0].ToUpper();
                                         }
                                         else
                                         {
-                                            parseMethod = argumentValueType.GetMethod("Parse", new[] { typeof(string[]) });
+                                            parseMethod = argumentValueType.GetMethod("Parse", new[] { typeof(string[]), typeof(bool), typeof(bool) });
+                                            parseMethod ??= argumentValueType.GetMethod("Parse", new[] { typeof(string[]), typeof(bool) });
+                                            parseMethod ??= argumentValueType.GetMethod("Parse", new[] { typeof(string[]) });
                                             toParse = values.ToArray();
                                         }
                                         if (parseMethod is not null)
                                         {
-                                            object? parsedValue = parseMethod.Invoke(null, new object[] { toParse });
+                                            ParameterInfo[] parameters = parseMethod.GetParameters();
+                                            int expectedParameterCount = parameters.Length;
+
+                                            object? parsedValue = null;
+
+                                            if (expectedParameterCount == 1)
+                                            {
+                                                parsedValue = parseMethod.Invoke(null, new object[] { toParse });
+                                            }
+                                            else if (expectedParameterCount == 2)
+                                            {
+                                                parsedValue = parseMethod.Invoke(null, new object[] { toParse, debug });
+                                            }
+                                            else if (expectedParameterCount == 3)
+                                            {
+                                                parsedValue = parseMethod.Invoke(null, new object[] { toParse, debug, verbose });
+                                            }
+                                            else
+                                            {
+                                                throw new Exception("No matching param count.");
+                                            }
                                             argumentValueProperty.SetValue(propertyValue, Convert.ChangeType(parsedValue, argumentValueType));
                                         }
                                         else
@@ -487,13 +545,15 @@ positional arguments:
 
             Parse(args);
 
+            Logger.Info($"Starting {Mode.ToString().ToLower()} mode");
+
             AdvancedOptions = new(args);
             FilterOptions = new(args);
             CredentialOptions = new(args);
-            TargetOptions = new(args);
+            TargetOptions = new(args, Debug.Value);
             ListenerOptions = new(args);
 
-            if (shownHelpTitle)
+            if (shownProgramDescription)
             {
                 Environment.Exit(0);
             }
@@ -581,6 +641,11 @@ positional arguments:
             OnlyKnownExploitPaths = new(new[] { Mode.FUZZ }, "--only-known-exploit-paths", null, "Only test known exploit paths for each functions", false, false);
             Parse(args);
 
+            if (Username.Value is null || Username.Value == "")
+            {
+                Logger.Info("No credentials provided, trying to connect with a NULL session.");
+            }
+
             if (Password.Value is null && Username.Value is not null && (Hashes.Value is null || Hashes.Value.Length != 0) && NoPass.Value != true)
             {
                 Console.Write("Password: ");
@@ -622,11 +687,11 @@ positional arguments:
         public Argument<Targets> TargetIps { get; }
         public Argument<string> TargetsFile { get; }
 
-        public TargetOptions(string[] args) : base()
+        public TargetOptions(string[] args, bool debug = false) : base()
         {
             TargetIps = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--target-ip", "-t", "IP address or hostname of the target machine", false);
             TargetsFile = new(new[] { Mode.COERCE, Mode.SCAN, Mode.FUZZ }, "--targets-file", "-f", "File containing a list of IP address or hostname of the target machines", false);
-            Parse(args);
+            Parse(args, debug);
 
             if (TargetsFile.Value is not null)
             {
@@ -635,11 +700,11 @@ positional arguments:
                     HashSet<string> targetIpsFromFile = File.ReadAllLines(TargetsFile.Value).ToHashSet();
                     if (TargetIps.Value is not null)
                     {
-                        TargetIps.Value = new(TargetIps.Value.Addresses.Concat(targetIpsFromFile).ToHashSet());
+                        TargetIps.Value = new(TargetIps.Value.Addresses.Concat(targetIpsFromFile).ToHashSet(), debug);
                     }
                     else
                     {
-                        TargetIps.Value = new(targetIpsFromFile);
+                        TargetIps.Value = new(targetIpsFromFile, debug);
                     }
                 }
                 else
@@ -664,35 +729,6 @@ positional arguments:
             IpAddress = new(new[] { Mode.SCAN, Mode.FUZZ }, "--ip-address", "-I", "IP address to listen on incoming authentications", false);
             ListenerIp = new(new[] { Mode.COERCE }, "--listener-ip", "-l", "IP address or hostname of the listener machine", true);
             Parse(args);
-        }
-    }
-
-    public class Argument<T>
-    {
-        public Mode[] Modes { get; }
-        public string Name { get; }
-        public string? ShortName { get; }
-        public string Description { get; }
-        public bool Required { get; }
-        public T? Value { get; set; }
-
-        public Argument(Mode[] modes, string name, string? shortName, string description, bool required, T value)
-        {
-            Modes = modes;
-            Name = name;
-            ShortName = shortName;
-            Description = description;
-            Required = required;
-            Value = value;
-        }
-
-        public Argument(Mode[] modes, string name, string? shortName, string description, bool required)
-        {
-            Modes = modes;
-            Name = name;
-            ShortName = shortName;
-            Required = required;
-            Description = description;
         }
     }
 }

@@ -4,8 +4,11 @@ namespace Coercer_dotnet.methods.MS_FSRVP
 {
     public abstract class MS_FSRVP : Method
     {
+        protected MS_FSRVP(AuthType authType, string listener) : base(authType, listener) { }
+        protected MS_FSRVP(AuthType authType, string listener, int port) : base(authType, listener, port) { }
+        protected MS_FSRVP(AuthType authType, string listener, int httpPort, int smbPort) : base(authType, listener, httpPort, smbPort) { }
         public override string Author => "@topotam77";
-        public override ExploitPath[] ExploitPaths => new ExploitPath[]
+        public override ExploitPathTemplate[] ExploitPathTemplates => new ExploitPathTemplate[]
         {
             new(AuthType.SMB, "\\\\{{listener}}\x00"),
             new(AuthType.HTTP, "\\\\{{listener}}@{{port}}/{{3}}\x00")

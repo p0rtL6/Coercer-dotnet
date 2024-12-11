@@ -3,6 +3,35 @@ using System.Numerics;
 
 namespace Coercer_dotnet.structures
 {
+    public class Argument<T>
+    {
+        public Mode[] Modes { get; }
+        public string Name { get; }
+        public string? ShortName { get; }
+        public string Description { get; }
+        public bool Required { get; }
+        public T? Value { get; set; }
+
+        public Argument(Mode[] modes, string name, string? shortName, string description, bool required, T value)
+        {
+            Modes = modes;
+            Name = name;
+            ShortName = shortName;
+            Description = description;
+            Required = required;
+            Value = value;
+        }
+
+        public Argument(Mode[] modes, string name, string? shortName, string description, bool required)
+        {
+            Modes = modes;
+            Name = name;
+            ShortName = shortName;
+            Required = required;
+            Description = description;
+        }
+    }
+
     public class Hash
     {
         public string Nt { get; }
@@ -38,24 +67,24 @@ namespace Coercer_dotnet.structures
     {
         public HashSet<string> Addresses { get; }
 
-        public static Targets Parse(string address)
+        public static Targets Parse(string address, bool debug = false)
         {
-            return new Targets(address);
+            return new Targets(address, debug);
         }
 
-        public static Targets Parse(string[] addresses)
+        public static Targets Parse(string[] addresses, bool debug = false)
         {
-            return new Targets(addresses);
+            return new Targets(addresses, debug);
         }
 
         public Targets(HashSet<IPAddress> addresses)
         {
             Addresses = addresses.Select(s => s.ToString()).ToHashSet();
         }
-        public Targets(string[] addresses) : this(addresses.ToHashSet()) { }
-        public Targets(string address) : this(new HashSet<string> { address }) { }
+        public Targets(string[] addresses, bool debug = false) : this(addresses.ToHashSet(), debug) { }
+        public Targets(string address, bool debug = false) : this(new HashSet<string> { address }, debug) { }
 
-        public Targets(HashSet<string> addresses)
+        public Targets(HashSet<string> addresses, bool debug = false)
         {
             Addresses = new();
             foreach (string address in addresses)
@@ -100,7 +129,10 @@ namespace Coercer_dotnet.structures
                 }
                 catch { }
 
-                throw new Exception($"Invalid address: {address}, must be an IP, FQDN, or URL.");
+                if (debug)
+                {
+                    Logger.Debug($"Target {address} was not added.");
+                }
             }
         }
 

